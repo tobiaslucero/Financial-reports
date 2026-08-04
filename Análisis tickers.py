@@ -30,54 +30,31 @@ if ticker_input:
 
         st.markdown("---")
 
-       # 2. Ratios Financieros con Explicaciones (Help Tooltips)
-        st.subheader("📌 Ratios Clave de Valuación y Eficiencia")
+      # 2. Ratios Financieros Organizados por Categoría
+        st.subheader("📌 Ratios Clave de Valuación, Rentabilidad y Riesgo")
         
-        r_col1, r_col2, r_col3, r_col4 = st.columns(4)
-        
-        r_col1.metric(
-            "Trailing P/E", 
-            f"{info.get('trailingPE', 0):.2f}" if info.get('trailingPE') else "N/D",
-            help="Relación Precio/Ganancias pasadas. Indica cuántos dólares pagan los inversores por cada dólar de ganancia generada en los últimos 12 meses."
-        )
-        r_col1.metric(
-            "Forward P/E", 
-            f"{info.get('forwardPE', 0):.2f}" if info.get('forwardPE') else "N/D",
-            help="Precio/Ganancias estimadas a futuro. Compara el precio actual con las ganancias que los analistas esperan para el próximo año."
-        )
-        
-        r_col2.metric(
-            "PEG Ratio", 
-            f"{info.get('pegRatio', 0):.2f}" if info.get('pegRatio') else "N/D",
-            help="Ajusta el P/E según la tasa de crecimiento de la empresa. Un valor menor a 1 suele indicar que la acción está barata para lo que crece."
-        )
-        r_col2.metric(
-            "Price to Book (P/B)", 
-            f"{info.get('priceToBook', 0):.2f}" if info.get('priceToBook') else "N/D",
-            help="Compara el valor de mercado de la empresa con su valor contable (activos menos deudas). Útil para ver si cotiza sobre su patrimonio real."
-        )
-        
-        r_col3.metric(
-            "ROE", 
-            f"{info.get('returnOnEquity', 0)*100:.2f}%" if info.get('returnOnEquity') else "N/D",
-            help="Retorno sobre el Patrimonio Neto. Mide qué tan eficiente es la empresa generando ganancias con el dinero de sus accionistas."
-        )
-        r_col3.metric(
-            "ROA", 
-            f"{info.get('returnOnAsset', 0)*100:.2f}%" if info.get('returnOnAsset') else "N/D",
-            help="Retorno sobre los Activos. Mide cuánta ganancia genera la empresa por cada dólar que tiene invertido en activos o infraestructura."
-        )
-        
-        r_col4.metric(
-            "Profit Margin", 
-            f"{info.get('profitMargins', 0)*100:.2f}%" if info.get('profitMargins') else "N/D",
-            help="Margen de Ganancia Neta. Muestra qué porcentaje de las ventas totales se convierte en ganancia limpia al final del ejercicio."
-        )
-        r_col4.metric(
-            "Debt to Equity", 
-            f"{info.get('debtToEquity', 0):.2f}" if info.get('debtToEquity') else "N/D",
-            help="Nivel de Endeudamiento. Mide cuánta deuda tiene la empresa en comparación con su patrimonio neto. Valores muy altos implican mayor riesgo financiero."
-        )
+        tab_val, tab_rent, tab_solv = st.tabs(["Valuación y Riesgo", "Rentabilidad y Márgenes", "Salud Financiera"])
+
+        with tab_val:
+            v_col1, v_col2, v_col3, v_col4 = st.columns(4)
+            v_col1.metric("Trailing P/E", f"{info.get('trailingPE', 0):.2f}" if info.get('trailingPE') else "N/D", help="Relación Precio/Ganancias pasadas.")
+            v_col2.metric("Forward P/E", f"{info.get('forwardPE', 0):.2f}" if info.get('forwardPE') else "N/D", help="Precio/Ganancias estimadas a futuro.")
+            v_col3.metric("PEG Ratio", f"{info.get('pegRatio', 0):.2f}" if info.get('pegRatio') else "N/D", help="P/E ajustado por tasa de crecimiento.")
+            v_col4.metric("Beta", f"{info.get('beta', 0):.2f}" if info.get('beta') else "N/D", help="Volatilidad respecto al mercado (SPY). >1 es más volátil, <1 más estable.")
+
+        with tab_rent:
+            m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+            m_col1.metric("ROE", f"{info.get('returnOnEquity', 0)*100:.2f}%" if info.get('returnOnEquity') else "N/D", help="Retorno sobre el Patrimonio Neto.")
+            m_col2.metric("ROA", f"{info.get('returnOnAsset', 0)*100:.2f}%" if info.get('returnOnAsset') else "N/D", help="Retorno sobre los Activos.")
+            m_col3.metric("Gross Margin", f"{info.get('grossMargins', 0)*100:.2f}%" if info.get('grossMargins') else "N/D", help="Margen Bruto de Ganancia.")
+            m_col4.metric("Profit Margin", f"{info.get('profitMargins', 0)*100:.2f}%" if info.get('profitMargins') else "N/D", help="Margen Neto de Ganancia.")
+
+        with tab_solv:
+            s_col1, s_col2, s_col3, s_col4 = st.columns(4)
+            s_col1.metric("Price to Book", f"{info.get('priceToBook', 0):.2f}" if info.get('priceToBook') else "N/D", help="Precio frente al valor contable.")
+            s_col2.metric("Debt to Equity", f"{info.get('debtToEquity', 0):.2f}" if info.get('debtToEquity') else "N/D", help="Nivel de endeudamiento sobre el patrimonio.")
+            s_col3.metric("Current Ratio", f"{info.get('currentRatio', 0):.2f}" if info.get('currentRatio') else "N/D", help="Capacidad de cubrir deudas de corto plazo con activos corrientes.")
+            s_col4.metric("Quick Ratio", f"{info.get('quickRatio', 0):.2f}" if info.get('quickRatio') else "N/D", help="Prueba ácida: liquidez inmediata sin contar inventarios.")
 
         # 3. Gráfico Técnico Histórico
         st.subheader("📈 Evolución Histórica y Medias Móviles")
