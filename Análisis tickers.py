@@ -72,16 +72,20 @@ if ticker_input:
             fig.update_layout(xaxis_rangeslider_visible=False, template="plotly_dark", height=500)
             st.plotly_chart(fig, use_container_width=True)
 
-        # 3.b Gráfico Fundamental: Precio vs EPS Trimestral
+       # 3.b Gráfico Fundamental: Precio vs EPS Trimestral (Histórico Extendido)
         st.subheader("📊 Evolución de Precio vs EPS Trimestral")
         
         try:
-            q_fin = asset.quarterly_financials
-            if not q_fin.empty and ('Diluted EPS' in q_fin.index or 'Basic EPS' in q_fin.index):
-                # Extraemos el EPS trimestral
-                eps_row = 'Diluted EPS' if 'Diluted EPS' in q_fin.index else 'Basic EPS'
-                df_eps = q_fin.loc[eps_row].dropna().to_frame(name='EPS')
-                df_eps.index = pd.to_datetime(df_eps.index)
+            # Consultamos el historial de ganancias (trae hasta 16 trimestres)
+            earnings_df = asset.earnings_dates
+            
+            if earnings_df is not None and not earnings_df.empty and 'Reported EPS' in earnings_df.columns:
+                # Filtramos reportes futuros o vacíos
+                df_eps = earnings_df.dropna(subset=['Reported EPS']).copy()
+                df_eps = df_eps[df_eps['Reported EPS'] != 0]
+                
+                # Eliminamos la zona horaria del índice para alinear bien con el gráfico de precios
+                df_eps.index = df_eps.index.tz_localize(None)
                 df_eps = df_eps.sort_index()
 
                 # Creamos el gráfico con doble eje Y
@@ -90,10 +94,11 @@ if ticker_input:
                 # Barras azules de EPS (Eje Y1)
                 fig_fund.add_trace(go.Bar(
                     x=df_eps.index,
-                    y=df_eps['EPS'],
-                    name='Diluted EPS',
+                    y=df_eps['Reported EPS'],
+                    name='EPS Reportado',
                     marker_color='#2962FF',
-                    yaxis='y1'
+                    yaxis='y1',
+                    width=1000*3600*24*40  # Ancho ajustado para vista temporal
                 ))
 
                 # Línea de Precio (Eje Y2)
@@ -117,9 +122,9 @@ if ticker_input:
 
                 st.plotly_chart(fig_fund, use_container_width=True)
             else:
-                st.info("No hay datos suficientes de EPS trimestral para este activo.")
+                st.info("No hay datos históricos extendidos de EPS para este activo.")
         except Exception:
-            pass  # Si falla el scraping fundamental, simplemente no dibuja nada para evitar romper la vista
+            pass
 
         # 4. Estados Financieros
         with st.expander("📄 Ver Estados Financieros Completos"):
