@@ -72,33 +72,46 @@ if ticker_input:
             fig.update_layout(xaxis_rangeslider_visible=False, template="plotly_dark", height=500)
             st.plotly_chart(fig, use_container_width=True)
 
-       # 3.b Gráfico Fundamental: Precio vs EPS Trimestral (Histórico Extendido)
+      # 3.b Gráfico Fundamental: Precio vs EPS Trimestral
         st.subheader("📊 Evolución de Precio vs EPS Trimestral")
         
         try:
-            # Consultamos el historial de ganancias (trae hasta 16 trimestres)
-            earnings_df = asset.earnings_dates
+            df_eps = None
             
-            if earnings_df is not None and not earnings_df.empty and 'Reported EPS' in earnings_df.columns:
-                # Filtramos reportes futuros o vacíos
-                df_eps = earnings_df.dropna(subset=['Reported EPS']).copy()
-                df_eps = df_eps[df_eps['Reported EPS'] != 0]
-                
-                # Eliminamos la zona horaria del índice para alinear bien con el gráfico de precios
-                df_eps.index = df_eps.index.tz_localize(None)
+            # Intento 1: Traer historial extendido desde earnings_dates
+            try:
+                e_dates = asset.earnings_dates
+                if e_dates is not None and not e_dates.empty and 'Reported EPS' in e_dates.columns:
+                    df_eps = e_dates.dropna(subset=['Reported EPS']).copy()
+                    df_eps = df_eps[df_eps['Reported EPS'] != 0]
+                    df_eps = df_eps[['Reported EPS']].rename(columns={'Reported EPS': 'EPS'})
+                    if hasattr(df_eps.index, 'tz') and df_eps.index.tz is not None:
+                        df_eps.index = df_eps.index.tz_localize(None)
+            except Exception:
+                pass
+
+            # Intento 2: Fallback a quarterly_financials si el primero no devolvió datos
+            if df_eps is None or df_eps.empty:
+                q_fin = asset.quarterly_financials
+                if q_fin is not None and not q_fin.empty:
+                    eps_row = next((r for r in ['Diluted EPS', 'Basic EPS'] if r in q_fin.index), None)
+                    if eps_row:
+                        df_eps = q_fin.loc[eps_row].dropna().to_frame(name='EPS')
+                        df_eps.index = pd.to_datetime(df_eps.index)
+
+            # Si tenemos datos de EPS, renderizamos el gráfico
+            if df_eps is not None and not df_eps.empty:
                 df_eps = df_eps.sort_index()
 
-                # Creamos el gráfico con doble eje Y
                 fig_fund = go.Figure()
 
-                # Barras azules de EPS (Eje Y1)
+                # Barras de EPS (Eje Y1)
                 fig_fund.add_trace(go.Bar(
                     x=df_eps.index,
-                    y=df_eps['Reported EPS'],
-                    name='EPS Reportado',
+                    y=df_eps['EPS'],
+                    name='EPS Trimestral',
                     marker_color='#2962FF',
-                    yaxis='y1',
-                    width=1000*3600*24*40  # Ancho ajustado para vista temporal
+                    yaxis='y1'
                 ))
 
                 # Línea de Precio (Eje Y2)
@@ -110,7 +123,6 @@ if ticker_input:
                     yaxis='y2'
                 ))
 
-                # Configuración de ejes dobles y estilo
                 fig_fund.update_layout(
                     template="plotly_dark",
                     height=450,
@@ -122,9 +134,10 @@ if ticker_input:
 
                 st.plotly_chart(fig_fund, use_container_width=True)
             else:
-                st.info("No hay datos históricos extendidos de EPS para este activo.")
+                st.info("No hay datos de EPS disponibles para este activo.")
+
         except Exception:
-            pass
+            st.info("No se pudieron cargar los datos de EPS para este activo.")
 
         # 4. Estados Financieros
         with st.expander("📄 Ver Estados Financieros Completos"):
