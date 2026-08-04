@@ -3,7 +3,7 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 
-st.set_page_config(page_title="Deep Dive de Activo", layout="wide")
+st.set_page_config(page_title="Deep Analysis Activos", layout="wide")
 st.title("📊 Financial Deep Dive por Ticker")
 
 ticker_input = st.text_input("Ingresá el Ticker (ej. ORCL, VIST, MSFT, TSLA, NVDA):", value="ORCL").upper().strip()
