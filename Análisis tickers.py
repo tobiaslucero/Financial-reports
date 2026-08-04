@@ -72,6 +72,55 @@ if ticker_input:
             fig.update_layout(xaxis_rangeslider_visible=False, template="plotly_dark", height=500)
             st.plotly_chart(fig, use_container_width=True)
 
+        # 3.b Gráfico Fundamental: Precio vs EPS Trimestral
+        st.subheader("📊 Evolución de Precio vs EPS Trimestral")
+        
+        try:
+            q_fin = asset.quarterly_financials
+            if not q_fin.empty and ('Diluted EPS' in q_fin.index or 'Basic EPS' in q_fin.index):
+                # Extraemos el EPS trimestral
+                eps_row = 'Diluted EPS' if 'Diluted EPS' in q_fin.index else 'Basic EPS'
+                df_eps = q_fin.loc[eps_row].dropna().to_frame(name='EPS')
+                df_eps.index = pd.to_datetime(df_eps.index)
+                df_eps = df_eps.sort_index()
+
+                # Creamos el gráfico con doble eje Y
+                fig_fund = go.Figure()
+
+                # Barras azules de EPS (Eje Y1)
+                fig_fund.add_trace(go.Bar(
+                    x=df_eps.index,
+                    y=df_eps['EPS'],
+                    name='Diluted EPS',
+                    marker_color='#2962FF',
+                    yaxis='y1'
+                ))
+
+                # Línea de Precio (Eje Y2)
+                fig_fund.add_trace(go.Scatter(
+                    x=df_hist.index,
+                    y=df_hist['Close'],
+                    name='Precio (USD)',
+                    line=dict(color='#FF6D00', width=2),
+                    yaxis='y2'
+                ))
+
+                # Configuración de ejes dobles y estilo
+                fig_fund.update_layout(
+                    template="plotly_dark",
+                    height=450,
+                    xaxis=dict(title="Fecha"),
+                    yaxis=dict(title="EPS ($)", showgrid=False),
+                    yaxis2=dict(title="Precio (USD)", overlaying='y', side='right', showgrid=False),
+                    legend=dict(x=0.01, y=0.99)
+                )
+
+                st.plotly_chart(fig_fund, use_container_width=True)
+            else:
+                st.info("No hay datos suficientes de EPS trimestral para este activo.")
+        except Exception:
+            pass  # Si falla el scraping fundamental, simplemente no dibuja nada para evitar romper la vista
+
         # 4. Estados Financieros
         with st.expander("📄 Ver Estados Financieros Completos"):
             tab1, tab2 = st.tabs(["Income Statement", "Balance Sheet"])
