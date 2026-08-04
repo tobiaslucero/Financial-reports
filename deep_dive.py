@@ -8,15 +8,15 @@ st.title("📊 Financial Deep Dive por Ticker")
 
 ticker_input = st.text_input("Ingresá el Ticker (ej. ORCL, VIST, MSFT, TSLA, NVDA):", value="ORCL").upper().strip()
 
-# Caché por 1 hora (3600 segundos) para no saturar Yahoo Finance
+# Cacheamos solo el diccionario de info, no el objeto Ticker entero
 @st.cache_data(ttl=3600)
-def get_ticker_data(symbol):
-    asset = yf.Ticker(symbol)
-    return asset.info, asset
+def get_info_data(symbol):
+    return yf.Ticker(symbol).info
 
 if ticker_input:
     try:
-        info, asset = get_ticker_data(ticker_input)
+        info = get_info_data(ticker_input)
+        asset = yf.Ticker(ticker_input) # Se instancia afuera de la caché para consultar el history()
         
         # 1. Resumen Ejecutivo
         st.header(f"{info.get('longName', ticker_input)} ({ticker_input})")
