@@ -35,12 +35,13 @@ if ticker_input:
         
         tab_val, tab_rent, tab_solv = st.tabs(["Valuación y Riesgo", "Rentabilidad y Márgenes", "Salud Financiera"])
 
-        with tab_val:
-            v_col1, v_col2, v_col3, v_col4 = st.columns(4)
-            v_col1.metric("Trailing P/E", f"{info.get('trailingPE', 0):.2f}" if info.get('trailingPE') else "N/D", help="Relación Precio/Ganancias pasadas.")
+       with tab_val:
+            v_col1, v_col2, v_col3, v_col4, v_col5 = st.columns(5)
+            v_col1.metric("Trailing P/E", f"{info.get('trailingPE', 0):.2f}" if info.get('trailingPE') else "N/D", help="Precio/Ganancias pasadas.")
             v_col2.metric("Forward P/E", f"{info.get('forwardPE', 0):.2f}" if info.get('forwardPE') else "N/D", help="Precio/Ganancias estimadas a futuro.")
-            v_col3.metric("PEG Ratio", f"{info.get('pegRatio', 0):.2f}" if info.get('pegRatio') else "N/D", help="P/E ajustado por tasa de crecimiento.")
-            v_col4.metric("Beta", f"{info.get('beta', 0):.2f}" if info.get('beta') else "N/D", help="Volatilidad respecto al mercado (SPY). >1 es más volátil, <1 más estable.")
+            v_col3.metric("PEG Ratio", f"{info.get('pegRatio', 0):.2f}" if info.get('pegRatio') else "N/D", help="P/E ajustado por crecimiento. <1 suele indicar subvaluación.")
+            v_col4.metric("EPS Growth (YoY)", f"{info.get('earningsGrowth', 0)*100:.2f}%" if info.get('earningsGrowth') else "N/D", help="Crecimiento interanual estimado/reciente de las ganancias por acción.")
+            v_col5.metric("Beta", f"{info.get('beta', 0):.2f}" if info.get('beta') else "N/D", help="Volatilidad respecto al mercado.")
 
         with tab_rent:
             m_col1, m_col2, m_col3, m_col4 = st.columns(4)
