@@ -46,7 +46,7 @@ if ticker_input:
         with tab_rent:
             m_col1, m_col2, m_col3, m_col4 = st.columns(4)
             m_col1.metric("ROE", f"{info.get('returnOnEquity', 0)*100:.2f}%" if info.get('returnOnEquity') else "N/D", help="Retorno sobre el Patrimonio Neto.")
-            m_col2.metric("ROA", f"{info.get('returnOnAsset', 0)*100:.2f}%" if info.get('returnOnAsset') else "N/D", help="Retorno sobre los Activos.")
+            m_col2.metric("ROA", f"{info.get('returnOnAsset', 0)*100:.2f}%" if info.get('returnOnAssets') else "N/D", help="Retorno sobre los Activos.")
             m_col3.metric("Gross Margin", f"{info.get('grossMargins', 0)*100:.2f}%" if info.get('grossMargins') else "N/D", help="Margen Bruto de Ganancia.")
             m_col4.metric("Profit Margin", f"{info.get('profitMargins', 0)*100:.2f}%" if info.get('profitMargins') else "N/D", help="Margen Neto de Ganancia.")
 
