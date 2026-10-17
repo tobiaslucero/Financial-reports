@@ -9,24 +9,35 @@ from core.style import COLORS, PALETTE, page_header, style_fig
 page_header("Portfolio", "Cargá tus posiciones, seguí la cartera y mirá cómo se correlacionan.")
 
 COLS = ["Ticker", "Cantidad", "Ratio CEDEAR", "Costo promedio (USD)"]
-if "portfolio" not in st.session_state:
-    st.session_state.portfolio = pd.DataFrame(
-        {"Ticker": ["AAPL", "MSFT", "NVDA"], "Cantidad": [10.0, 5.0, 8.0],
-         "Ratio CEDEAR": [1.0, 1.0, 1.0], "Costo promedio (USD)": [150.0, 300.0, 400.0]}
-    )
+DEFAULT_PF = pd.DataFrame(
+    {"Ticker": ["AAPL", "MSFT", "NVDA"], "Cantidad": [10.0, 5.0, 8.0],
+     "Ratio CEDEAR": [1.0, 1.0, 1.0], "Costo promedio (USD)": [150.0, 300.0, 400.0]}
+)
+ss = st.session_state
+ss.setdefault("pf_version", 0)
+ss.setdefault("pf_saved", DEFAULT_PF.copy())
 
 # --- Carga de posiciones
 st.subheader("Mis posiciones")
 up = st.file_uploader("Importar CSV", type="csv", label_visibility="collapsed")
-if up is not None and st.session_state.get("_last_upload") != up.name:
-    df_up = pd.read_csv(up)
-    if "Ratio CEDEAR" not in df_up:  # CSV viejo sin ratio: se asume acción directa
-        df_up["Ratio CEDEAR"] = 1.0
-    st.session_state.portfolio = df_up[COLS]
-    st.session_state["_last_upload"] = up.name
+if up is not None:
+    fid = getattr(up, "file_id", None) or (up.name, up.size)
+    if ss.get("_last_upload") != fid:
+        df_up = pd.read_csv(up)
+        if "Ratio CEDEAR" not in df_up:  # CSV viejo sin ratio: se asume acción directa
+            df_up["Ratio CEDEAR"] = 1.0
+        ss["pf_saved"] = df_up[COLS].copy()
+        ss["pf_version"] += 1  # cambia la key: el editor arranca con el CSV nuevo
+        ss["_last_upload"] = fid
+
+# El editor recibe SIEMPRE la misma tabla base mientras estás en la página; si se
+# le devolviera lo editado en cada recarga, Streamlit lo reinicia y pierde la edición.
+editor_key = f"pf_editor_{ss['pf_version']}"
+if editor_key not in ss:  # primera vez o al volver de otra sección: retomar lo último
+    ss["pf_base"] = ss["pf_saved"].copy()
 
 edited = st.data_editor(
-    st.session_state.portfolio, num_rows="dynamic", use_container_width=True,
+    ss["pf_base"], key=editor_key, num_rows="dynamic", use_container_width=True,
     column_config={
         "Ticker": st.column_config.TextColumn(required=True, help="Ticker del subyacente en EE.UU. (AAPL, MSFT…)"),
         "Cantidad": st.column_config.NumberColumn(min_value=0.0, format="%g", help="Unidades que tenés: CEDEARs o acciones."),
@@ -36,7 +47,7 @@ edited = st.data_editor(
         "Costo promedio (USD)": st.column_config.NumberColumn(min_value=0.0, format="$%.2f", help="Costo por unidad (CEDEAR o acción), en dólares."),
     },
 )
-st.session_state.portfolio = edited
+ss["pf_saved"] = edited.copy()
 st.caption("Cantidad / Ratio = acciones equivalentes (pueden ser fraccionarias). Verificá el ratio de cada CEDEAR con tu broker: cambia si hay splits.")
 st.download_button("Descargar CSV (para guardar tu cartera)", edited.to_csv(index=False), "portfolio.csv", "text/csv")
 
