@@ -8,38 +8,52 @@ from core.style import COLORS, PALETTE, page_header, style_fig
 
 page_header("Portfolio", "Cargá tus posiciones, seguí la cartera y mirá cómo se correlacionan.")
 
-COLS = ["Ticker", "Cantidad", "Costo promedio (USD)"]
+COLS = ["Ticker", "Cantidad", "Ratio CEDEAR", "Costo promedio (USD)"]
 if "portfolio" not in st.session_state:
     st.session_state.portfolio = pd.DataFrame(
-        {"Ticker": ["AAPL", "MSFT", "NVDA"], "Cantidad": [10.0, 5.0, 8.0], "Costo promedio (USD)": [150.0, 300.0, 400.0]}
+        {"Ticker": ["AAPL", "MSFT", "NVDA"], "Cantidad": [10.0, 5.0, 8.0],
+         "Ratio CEDEAR": [1.0, 1.0, 1.0], "Costo promedio (USD)": [150.0, 300.0, 400.0]}
     )
 
 # --- Carga de posiciones
 st.subheader("Mis posiciones")
-up = st.file_uploader("Importar CSV (Ticker, Cantidad, Costo promedio (USD))", type="csv", label_visibility="collapsed")
+up = st.file_uploader("Importar CSV", type="csv", label_visibility="collapsed")
 if up is not None and st.session_state.get("_last_upload") != up.name:
-    st.session_state.portfolio = pd.read_csv(up)[COLS]
+    df_up = pd.read_csv(up)
+    if "Ratio CEDEAR" not in df_up:  # CSV viejo sin ratio: se asume acción directa
+        df_up["Ratio CEDEAR"] = 1.0
+    st.session_state.portfolio = df_up[COLS]
     st.session_state["_last_upload"] = up.name
 
 edited = st.data_editor(
     st.session_state.portfolio, num_rows="dynamic", use_container_width=True,
     column_config={
-        "Ticker": st.column_config.TextColumn(required=True),
-        "Cantidad": st.column_config.NumberColumn(min_value=0.0, format="%.4f"),
-        "Costo promedio (USD)": st.column_config.NumberColumn(min_value=0.0, format="$%.2f"),
+        "Ticker": st.column_config.TextColumn(required=True, help="Ticker del subyacente en EE.UU. (AAPL, MSFT…)"),
+        "Cantidad": st.column_config.NumberColumn(min_value=0.0, format="%g", help="Unidades que tenés: CEDEARs o acciones."),
+        "Ratio CEDEAR": st.column_config.NumberColumn(
+            min_value=0.0, format="%g",
+            help="CEDEARs necesarios para 1 acción. Ej.: ratio 20 = 20 CEDEARs por acción. Para acciones directas, dejá 1."),
+        "Costo promedio (USD)": st.column_config.NumberColumn(min_value=0.0, format="$%.2f", help="Costo por unidad (CEDEAR o acción), en dólares."),
     },
 )
 st.session_state.portfolio = edited
+st.caption("Cantidad / Ratio = acciones equivalentes (pueden ser fraccionarias). Verificá el ratio de cada CEDEAR con tu broker: cambia si hay splits.")
 st.download_button("Descargar CSV (para guardar tu cartera)", edited.to_csv(index=False), "portfolio.csv", "text/csv")
 
 pf = edited.dropna(subset=["Ticker", "Cantidad"]).copy()
 pf["Ticker"] = pf["Ticker"].astype(str).str.upper().str.strip()
-pf = pf[(pf["Ticker"] != "") & (pf["Cantidad"] > 0)].groupby("Ticker", as_index=False).agg(
-    {"Cantidad": "sum", "Costo promedio (USD)": "mean"}
-)
+pf["Ratio CEDEAR"] = pf["Ratio CEDEAR"].fillna(1.0).where(lambda s: s > 0, 1.0)
+pf["Costo promedio (USD)"] = pf["Costo promedio (USD)"].fillna(0.0)
+pf = pf[(pf["Ticker"] != "") & (pf["Cantidad"] > 0)]
 if pf.empty:
     st.info("Agregá al menos una posición para empezar.")
     st.stop()
+
+pf["Acciones eq."] = pf["Cantidad"] / pf["Ratio CEDEAR"]
+pf["Invertido"] = pf["Cantidad"] * pf["Costo promedio (USD)"]
+pf = pf.groupby("Ticker", as_index=False).agg(
+    {"Cantidad": "sum", "Acciones eq.": "sum", "Invertido": "sum"}
+)
 
 # --- Precios
 period = st.selectbox("Ventana para retornos y correlación", ["6mo", "1y", "2y", "5y"], index=1)
@@ -61,8 +75,7 @@ prices = prices[list(pf["Ticker"])]
 
 last = prices.iloc[-1]
 pf["Precio"] = pf["Ticker"].map(last)
-pf["Valor"] = pf["Cantidad"] * pf["Precio"]
-pf["Invertido"] = pf["Cantidad"] * pf["Costo promedio (USD)"]
+pf["Valor"] = pf["Acciones eq."] * pf["Precio"]
 pf["P&L (USD)"] = pf["Valor"] - pf["Invertido"]
 pf["P&L (%)"] = np.where(pf["Invertido"] > 0, pf["P&L (USD)"] / pf["Invertido"] * 100, np.nan)
 pf["Peso (%)"] = pf["Valor"] / pf["Valor"].sum() * 100
@@ -81,15 +94,18 @@ k2.metric("Invertido", f"${total_inv:,.0f}")
 k3.metric("P&L", f"${pnl:,.0f}", f"{pnl / total_inv * 100:.2f}%" if total_inv else None)
 k4.metric("Volatilidad anual", f"{vol * 100:.1f}%" if not np.isnan(vol) else "N/D",
           help="Calculada con la matriz de covarianza de los retornos diarios y los pesos actuales.")
+st.caption("Valores en USD, según el precio del subyacente en EE.UU. El CEDEAR real puede cotizar con una pequeña diferencia.")
 
 tab_pos, tab_corr, tab_perf = st.tabs(["Posiciones", "Correlación", "Rendimiento"])
 
 with tab_pos:
     left, right = st.columns([3, 2])
     left.dataframe(
-        pf[["Ticker", "Cantidad", "Precio", "Valor", "P&L (USD)", "P&L (%)", "Peso (%)"]],
+        pf[["Ticker", "Cantidad", "Acciones eq.", "Precio", "Valor", "P&L (USD)", "P&L (%)", "Peso (%)"]],
         use_container_width=True, hide_index=True,
         column_config={
+            "Cantidad": st.column_config.NumberColumn(format="%g"),
+            "Acciones eq.": st.column_config.NumberColumn(format="%.4f"),
             "Precio": st.column_config.NumberColumn(format="$%.2f"),
             "Valor": st.column_config.NumberColumn(format="$%.2f"),
             "P&L (USD)": st.column_config.NumberColumn(format="$%.2f"),
@@ -122,7 +138,7 @@ with tab_corr:
 
 with tab_perf:
     base100 = prices / prices.bfill().iloc[0] * 100
-    port = (prices * pf.set_index("Ticker")["Cantidad"]).sum(axis=1)
+    port = (prices * pf.set_index("Ticker")["Acciones eq."]).sum(axis=1)
     fig = go.Figure()
     for i, t in enumerate(base100.columns):
         fig.add_trace(go.Scatter(x=base100.index, y=base100[t], name=t,
